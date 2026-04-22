@@ -188,7 +188,7 @@ def kpi_card(icon, label, value_id):
 kpi_row = dbc.Row([
     kpi_card("bi-people-fill",        "Employees",               "kpi-employees"),
     kpi_card("bi-emoji-frown-fill",   "Burnout Rate",            "kpi-burnout"),
-    kpi_card("bi-thermometer-half",   "Avg Stress (1-3)",        "kpi-stress"),
+    kpi_card("bi-thermometer-half",   "High Stress Rate",        "kpi-stress"),
     kpi_card("bi-clock-history",      "Avg Hours / Week",        "kpi-hours"),
 ], className="mb-2")
 
@@ -328,11 +328,11 @@ def update_kpis(locations, genders, industries, age_range):
     if d.empty:
         return "0", "—", "—", "—", "No data"
     n = len(d)
-    burnout_pct = f"{(d['Mental_Health_Condition']=='Burnout').mean()*100:.1f}%"
-    avg_stress  = f"{d['Stress_Num'].mean():.2f}"
-    avg_hours   = f"{d['Hours_Worked_Per_Week'].mean():.1f}"
-    count_txt   = f"{n:,} records selected"
-    return f"{n:,}", burnout_pct, avg_stress, avg_hours, count_txt
+    burnout_pct   = f"{(d['Mental_Health_Condition']=='Burnout').mean()*100:.1f}%"
+    high_stress   = f"{(d['Stress_Level']=='High').mean()*100:.1f}%"  # % reporting High stress
+    avg_hours     = f"{d['Hours_Worked_Per_Week'].mean():.1f}"
+    count_txt     = f"{n:,} records selected"
+    return f"{n:,}", burnout_pct, high_stress, avg_hours, count_txt
 
 
 # ── Overview Tab ─────────────────────────────────────────────────────────────
