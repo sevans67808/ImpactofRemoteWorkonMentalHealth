@@ -219,7 +219,12 @@ tab_stress = dbc.Tab(label="🔥 Stress & Workload", tab_id="tab-stress", childr
                 value="Stress_Level",
                 inline=True,
                 inputStyle={"marginRight": "5px", "marginLeft": "12px"},
-                className="mb-2",
+                className="mb-1",
+            ),
+            html.P(
+                "Switch color to explore patterns across work type, stress level, and mental health.",
+                className="small mb-2",
+                style={"color": "#8E91A8", "fontStyle": "italic", "marginLeft": "4px"},
             ),
         ], md=12),
     ]),
@@ -357,36 +362,47 @@ def update_overview(locations, genders, industries, age_range):
                 .size().reset_index(name="Count"))
         totals = grp.groupby("Work_Location")["Count"].transform("sum")
         grp["Pct"] = grp["Count"] / totals * 100
+        grp["Pct_label"] = grp["Pct"].round(1).astype(str) + "%"
         fig1 = px.bar(
             grp, x="Work_Location", y="Pct",
             color="Mental_Health_Condition",
             color_discrete_map=MENTAL_COLORS,
             barmode="stack",
+            custom_data=["Mental_Health_Condition", "Pct_label", "Count"],
             labels={"Pct": "% of Employees", "Work_Location": "Work Model",
                     "Mental_Health_Condition": "Condition"},
             category_orders={"Work_Location": ["Remote", "Hybrid", "Onsite"]},
             template=CHART_THEME,
         )
-    apply_layout(fig1, "Mental Health Condition by Work Model")
+        fig1.update_traces(
+            hovertemplate="<b>%{customdata[0]}</b><br>Work Model: %{x}<br>Share: %{customdata[1]}<br>Employees: %{customdata[2]:,}<extra></extra>"
+        )
+    apply_layout(fig1, "Mental Health Condition by Work Model (% of Employees)")
 
-    # Chart 2 – Average stress by industry (horizontal bar)
+    # Chart 2 – % High stress by industry (horizontal bar, categorical — no numeric axis implied)
     if d.empty:
         fig2 = go.Figure()
     else:
-        stress_by_ind = (d.groupby("Industry")["Stress_Num"]
-                          .mean().reset_index(name="Avg_Stress")
-                          .sort_values("Avg_Stress", ascending=True))
+        stress_by_ind = (
+            d.groupby("Industry")
+            .apply(lambda x: (x["Stress_Level"] == "High").mean() * 100)
+            .reset_index(name="Pct_High")
+            .sort_values("Pct_High", ascending=True)
+        )
         fig2 = px.bar(
-            stress_by_ind, x="Avg_Stress", y="Industry",
+            stress_by_ind, x="Pct_High", y="Industry",
             orientation="h",
-            color="Avg_Stress",
+            color="Pct_High",
             color_continuous_scale=["#43B89C", "#F5A623", "#E05C5C"],
-            range_color=[1, 3],
-            labels={"Avg_Stress": "Avg Stress (1=Low, 3=High)"},
+            range_color=[25, 45],
+            labels={"Pct_High": "% Reporting High Stress", "Industry": "Industry"},
             template=CHART_THEME,
         )
+        fig2.update_traces(
+            hovertemplate="<b>%{y}</b><br>High Stress: %{x:.1f}%<extra></extra>"
+        )
         fig2.update(layout_coloraxis_showscale=False)
-    apply_layout(fig2, "Average Stress Level by Industry")
+    apply_layout(fig2, "High Stress Rate by Industry")
 
     # Chart 3 – Sleep quality distribution by work location
     sleep_order_val = SLEEP_ORDER
@@ -405,9 +421,12 @@ def update_overview(locations, genders, industries, age_range):
                 "Sleep_Quality": sleep_order_val,
                 "Work_Location": ["Remote", "Hybrid", "Onsite"],
             },
-            labels={"Work_Location": "Work Model", "Count": "# Employees",
+            labels={"Work_Location": "Work Model", "Count": "Employees",
                     "Sleep_Quality": "Sleep Quality"},
             template=CHART_THEME,
+        )
+        fig3.update_traces(
+            hovertemplate="<b>%{fullData.name}</b><br>Work Model: %{x}<br>Employees: %{y:,}<extra></extra>"
         )
     apply_layout(fig3, "Sleep Quality by Work Model")
 
@@ -425,8 +444,13 @@ def update_overview(locations, genders, industries, age_range):
             color_discrete_map=prod_colors,
             template=CHART_THEME,
         )
-        fig4.update_traces(textinfo="percent+label", pull=[0.03, 0.03, 0.03])
-    apply_layout(fig4, "Reported Productivity Change")
+        fig4.update_traces(
+            textinfo="percent+label",
+            texttemplate="%{label}<br>%{percent:.1%}",
+            pull=[0.03, 0.03, 0.03],
+            hovertemplate="<b>%{label}</b><br>Employees: %{value:,}<br>Share: %{percent:.1%}<extra></extra>",
+        )
+    apply_layout(fig4, "Self-Reported Productivity Change")
 
     return fig1, fig2, fig3, fig4
 
@@ -465,13 +489,20 @@ def update_stress(locations, genders, industries, age_range, color_by):
             y="Social_Isolation_Rating",
             color=color_by,
             color_discrete_map=color_map,
-            opacity=0.65,
-            labels={"Hours_Worked_Per_Week": "Hrs / Week",
-                    "Social_Isolation_Rating": "Social Isolation (1–5)"},
+            opacity=0.45,
+            size_max=6,
+            labels={"Hours_Worked_Per_Week": "Hours Worked / Week",
+                    "Social_Isolation_Rating": "Social Isolation (1–5)",
+                    "Work_Location": "Work Model",
+                    "Stress_Level": "Stress Level",
+                    "Mental_Health_Condition": "Mental Health"},
             template=CHART_THEME,
-            hover_data=["Job_Role", "Industry", "Stress_Level"],
         )
-    apply_layout(fig1, "Hours Worked vs Social Isolation", height=420)
+        fig1.update_traces(
+            marker=dict(size=5),
+            hovertemplate="<b>%{fullData.name}</b><br>Hours / Week: %{x}<br>Isolation: %{y}<extra></extra>",
+        )
+    apply_layout(fig1, "Hours Worked per Week vs Social Isolation", height=420)
 
     # Chart 2 – Box: social isolation by stress level
     if d.empty:
@@ -483,11 +514,14 @@ def update_stress(locations, genders, industries, age_range, color_by):
             color_discrete_map=STRESS_COLORS,
             category_orders={"Stress_Level": ["Low", "Medium", "High"]},
             labels={"Stress_Level": "Stress Level",
-                    "Social_Isolation_Rating": "Isolation (1–5)"},
+                    "Social_Isolation_Rating": "Isolation Rating (1–5)"},
             template=CHART_THEME,
         )
-        fig2.update_traces(showlegend=False)
-    apply_layout(fig2, "Isolation by Stress", height=420)
+        fig2.update_traces(
+            showlegend=False,
+            hovertemplate="Stress: %{x}<br>Isolation: %{y}<extra></extra>",
+        )
+    apply_layout(fig2, "Social Isolation by Stress Level", height=420)
 
     # Chart 3 – Bar: avg virtual meetings by stress level × work location
     if d.empty:
@@ -496,6 +530,7 @@ def update_stress(locations, genders, industries, age_range, color_by):
         vm = (d.groupby(["Stress_Level", "Work_Location"])
                ["Number_of_Virtual_Meetings"]
                .mean().reset_index(name="Avg_Meetings"))
+        vm["Avg_Meetings"] = vm["Avg_Meetings"].round(1)
         fig3 = px.bar(
             vm, x="Stress_Level", y="Avg_Meetings",
             color="Work_Location",
@@ -506,10 +541,14 @@ def update_stress(locations, genders, industries, age_range, color_by):
                 "Work_Location": ["Remote", "Hybrid", "Onsite"],
             },
             labels={"Avg_Meetings": "Avg Meetings / Day",
-                    "Stress_Level": "Stress Level"},
+                    "Stress_Level": "Stress Level",
+                    "Work_Location": "Work Model"},
             template=CHART_THEME,
         )
-    apply_layout(fig3, "Virtual Meetings / Day by Stress & Work Model")
+        fig3.update_traces(
+            hovertemplate="<b>%{fullData.name}</b><br>Stress: %{x}<br>Avg Meetings/Day: %{y:.1f}<extra></extra>"
+        )
+    apply_layout(fig3, "Daily Virtual Meetings by Stress Level & Work Model")
 
     # Chart 4 – Violin: work-life balance rating by stress level
     if d.empty:
@@ -521,7 +560,7 @@ def update_stress(locations, genders, industries, age_range, color_by):
             color_discrete_map=STRESS_COLORS,
             box=True, points=False,
             category_orders={"Stress_Level": ["Low", "Medium", "High"]},
-            labels={"Work_Life_Balance_Rating": "WLB Rating (1–5)",
+            labels={"Work_Life_Balance_Rating": "Work-Life Balance Rating (1–5)",
                     "Stress_Level": "Stress Level"},
             template=CHART_THEME,
         )
@@ -545,22 +584,31 @@ def update_stress(locations, genders, industries, age_range, color_by):
 def update_support(locations, genders, industries, age_range):
     d = get_filtered(locations, genders, industries, age_range)
 
-    # Chart 1 – Grouped bar: mental health condition by access to MH resources
+    # Chart 1 – Grouped bar: % of each condition with/without MH resource access
     if d.empty:
         fig1 = go.Figure()
     else:
         grp = (d.groupby(["Access_to_Mental_Health_Resources", "Mental_Health_Condition"])
                 .size().reset_index(name="Count"))
+        # Normalize to % within each resource-access group so sizes don't mislead
+        group_totals = grp.groupby("Access_to_Mental_Health_Resources")["Count"].transform("sum")
+        grp["Pct"] = grp["Count"] / group_totals * 100
+        grp["Pct_label"] = grp["Pct"].round(1).astype(str) + "%"
         fig1 = px.bar(
-            grp, x="Mental_Health_Condition", y="Count",
+            grp, x="Mental_Health_Condition", y="Pct",
             color="Access_to_Mental_Health_Resources",
             barmode="group",
-            color_discrete_sequence=["#E05C5C", "#43B89C"],
+            color_discrete_map={"No": "#E05C5C", "Yes": "#43B89C"},
+            custom_data=["Access_to_Mental_Health_Resources", "Pct_label", "Count"],
             labels={"Mental_Health_Condition": "Condition",
-                    "Access_to_Mental_Health_Resources": "MH Resources"},
+                    "Pct": "% Within Group",
+                    "Access_to_Mental_Health_Resources": "Has MH Resources"},
             template=CHART_THEME,
         )
-    apply_layout(fig1, "Mental Health Conditions vs Access to Resources")
+        fig1.update_traces(
+            hovertemplate="<b>%{x}</b><br>Has Resources: %{customdata[0]}<br>Share: %{customdata[1]}<br>Employees: %{customdata[2]:,}<extra></extra>"
+        )
+    apply_layout(fig1, "Mental Health Conditions by Resource Access (% Within Group)")
 
     # Chart 2 – Stacked bar: satisfaction with remote work by location
     if d.empty:
@@ -570,12 +618,14 @@ def update_support(locations, genders, industries, age_range):
                     .groupby(["Work_Location", "Satisfaction_with_Remote_Work"])
                     .size().reset_index(name="Count"))
         totals = sat_grp.groupby("Work_Location")["Count"].transform("sum")
-        sat_grp["Pct"] = sat_grp["Count"] / totals * 100
+        sat_grp["Pct"] = (sat_grp["Count"] / totals * 100).round(1)
+        sat_grp["Pct_label"] = sat_grp["Pct"].astype(str) + "%"
         fig2 = px.bar(
             sat_grp, x="Work_Location", y="Pct",
             color="Satisfaction_with_Remote_Work",
             barmode="stack",
             color_discrete_sequence=["#E05C5C", "#F5A623", "#43B89C"],
+            custom_data=["Satisfaction_with_Remote_Work", "Pct_label", "Count"],
             category_orders={
                 "Satisfaction_with_Remote_Work": SAT_ORDER,
                 "Work_Location": ["Remote", "Hybrid", "Onsite"],
@@ -583,6 +633,9 @@ def update_support(locations, genders, industries, age_range):
             labels={"Pct": "% of Employees", "Work_Location": "Work Model",
                     "Satisfaction_with_Remote_Work": "Satisfaction"},
             template=CHART_THEME,
+        )
+        fig2.update_traces(
+            hovertemplate="Satisfaction: <b>%{customdata[0]}</b><br>Work Model: %{x}<br>Employees: %{customdata[2]:,} (%{customdata[1]})<extra></extra>"
         )
     apply_layout(fig2, "Remote Work Satisfaction by Work Model")
 
@@ -597,10 +650,13 @@ def update_support(locations, genders, industries, age_range):
             color="Activity",
             color_discrete_sequence=["#6C63FF", "#43B89C", "#F5A623", "#E05C5C"],
             template=CHART_THEME,
-            labels={"Activity": "Physical Activity", "Count": "# Employees"},
+            labels={"Activity": "Exercise Frequency", "Count": "Employees"},
         )
-        fig3.update_traces(showlegend=False)
-    apply_layout(fig3, "Physical Activity Frequency")
+        fig3.update_traces(
+            showlegend=False,
+            hovertemplate="<b>%{x}</b><br>Employees: %{y:,}<extra></extra>",
+        )
+    apply_layout(fig3, "Exercise Frequency Among Employees")
 
     # Chart 4 – Heatmap: stress × satisfaction (count)
     if d.empty:
@@ -618,16 +674,17 @@ def update_support(locations, genders, industries, age_range):
             y=pivot.index.tolist(),
             colorscale=[[0,"#12131A"],[0.5,"#6C63FF"],[1,"#E05C5C"]],
             text=pivot.values,
-            texttemplate="%{text}",
+            texttemplate="%{text:,}",
+            hovertemplate="Stress: <b>%{y}</b><br>Satisfaction: <b>%{x}</b><br>Employees: %{z:,}<extra></extra>",
             showscale=True,
             colorbar=dict(tickfont=dict(color="#C8C9D4")),
         ))
         fig4.update_layout(
-            xaxis_title="Satisfaction with Remote Work",
+            xaxis_title="Remote Work Satisfaction",
             yaxis_title="Stress Level",
             template=CHART_THEME,
         )
-    apply_layout(fig4, "Stress vs Remote Work Satisfaction (Heatmap)")
+    apply_layout(fig4, "Where Stress & Satisfaction Overlap")
 
     return fig1, fig2, fig3, fig4
 
@@ -652,45 +709,67 @@ def update_demographics(locations, genders, industries, age_range):
         fig1 = px.histogram(
             d, x="Age", color="Mental_Health_Condition",
             color_discrete_map=MENTAL_COLORS,
-            barmode="overlay", opacity=0.75,
+            barmode="overlay", opacity=0.50,
             nbins=20,
-            labels={"Mental_Health_Condition": "Condition"},
+            labels={"Mental_Health_Condition": "Condition",
+                    "Age": "Age", "count": "Employees"},
             template=CHART_THEME,
+        )
+        fig1.update_traces(
+            hovertemplate="<b>%{fullData.name}</b><br>Age range: %{x}<br>Employees: %{y:,}<extra></extra>"
         )
     apply_layout(fig1, "Age Distribution by Mental Health Condition")
 
-    # Chart 2 – Grouped bar: stress level by gender
+    # Chart 2 – Grouped bar: stress level by gender, normalized to % within gender
     if d.empty:
         fig2 = go.Figure()
     else:
         gen_stress = (d.groupby(["Gender", "Stress_Level"])
                        .size().reset_index(name="Count"))
+        gender_totals = gen_stress.groupby("Gender")["Count"].transform("sum")
+        gen_stress["Pct"] = (gen_stress["Count"] / gender_totals * 100).round(1)
+        gen_stress["Pct_label"] = gen_stress["Pct"].astype(str) + "%"
         fig2 = px.bar(
-            gen_stress, x="Gender", y="Count",
+            gen_stress, x="Gender", y="Pct",
             color="Stress_Level",
             barmode="group",
             color_discrete_map=STRESS_COLORS,
+            custom_data=["Stress_Level", "Pct_label", "Count"],
             category_orders={"Stress_Level": ["Low", "Medium", "High"]},
-            labels={"Count": "# Employees"},
+            labels={"Pct": "% Within Gender", "Gender": "Gender",
+                    "Stress_Level": "Stress Level"},
             template=CHART_THEME,
         )
-    apply_layout(fig2, "Stress Level by Gender")
+        fig2.update_traces(
+            hovertemplate="<b>%{customdata[0]} Stress</b><br>Gender: %{x}<br>Share: %{customdata[1]}<br>Employees: %{customdata[2]:,}<extra></extra>"
+        )
+    apply_layout(fig2, "Stress Distribution by Gender (% Within Group)")
 
-    # Chart 3 – Grouped bar: job role vs mental health condition (horizontal)
+    # Chart 3 – Grouped bar: job role vs mental health condition (horizontal, sorted by total count)
     if d.empty:
         fig3 = go.Figure()
     else:
         role_mh = (d.groupby(["Job_Role", "Mental_Health_Condition"])
                     .size().reset_index(name="Count"))
+        # Sort roles by total count descending so the most-affected appear at top
+        role_order = (
+            role_mh.groupby("Job_Role")["Count"].sum()
+            .sort_values(ascending=True).index.tolist()
+        )
         fig3 = px.bar(
             role_mh, x="Count", y="Job_Role",
             color="Mental_Health_Condition",
             barmode="group",
             orientation="h",
             color_discrete_map=MENTAL_COLORS,
-            labels={"Count": "# Employees", "Job_Role": "Job Role",
+            category_orders={"Job_Role": role_order,
+                             "Mental_Health_Condition": ["Anxiety", "Burnout", "Depression"]},
+            labels={"Count": "Employees", "Job_Role": "Job Role",
                     "Mental_Health_Condition": "Condition"},
             template=CHART_THEME,
+        )
+        fig3.update_traces(
+            hovertemplate="<b>%{fullData.name}</b><br>Role: %{y}<br>Employees: %{x:,}<extra></extra>"
         )
     apply_layout(fig3, "Mental Health Conditions by Job Role", height=360)
 
