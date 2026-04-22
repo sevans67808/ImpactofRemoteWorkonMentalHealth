@@ -1,0 +1,101 @@
+/* ============================================================
+   Remote Work & Mental Health Dashboard – Accessibility CSS
+   Forces readable text on dark sidebar / cards
+   ============================================================ */
+
+/* ── Global body ──────────────────────────────────────────── */
+body {
+    background-color: #12131A !important;
+    color: #E8E9F0 !important;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+/* ── All text inside the sidebar card ───────────────────────── */
+.card,
+.card-body {
+    color: #E8E9F0 !important;
+}
+
+/* ── Checklist labels (the text next to each checkbox) ─────── */
+.form-check-label,
+label,
+.dash-checklist label,
+input[type="checkbox"] + span,
+/* Dash renders checklist items as <label> tags */
+.dash-checklist > div > label {
+    color: #E8E9F0 !important;
+    font-size: 0.875rem;
+}
+
+/* ── Section header labels (Work Location, Gender, Industry) ── */
+.small.fw-bold {
+    color: #B8BDD4 !important;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    display: block;
+}
+
+/* ── Checkbox accent colour ─────────────────────────────────── */
+input[type="checkbox"] {
+    accent-color: #6C63FF;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+/* ── Range-slider tooltip text ──────────────────────────────── */
+.rc-slider-tooltip-inner {
+    color: #E8E9F0 !important;
+    background-color: #2A2B3D !important;
+}
+
+/* ── Range-slider marks ──────────────────────────────────────── */
+.rc-slider-mark-text {
+    color: #B8BDD4 !important;
+}
+
+/* ── "N records selected" text ──────────────────────────────── */
+.text-muted {
+    color: #8E91A8 !important;
+}
+
+/* ── KPI card values ────────────────────────────────────────── */
+.fs-4.fw-bold {
+    color: #E8E9F0 !important;
+}
+
+/* ── Tab labels ─────────────────────────────────────────────── */
+.nav-tabs .nav-link {
+    color: #B8BDD4 !important;
+}
+.nav-tabs .nav-link.active {
+    color: #FFFFFF !important;
+    background-color: #2A2B3D !important;
+    border-color: #6C63FF !important;
+    border-bottom-color: #2A2B3D !important;
+}
+
+/* ── Radio button labels (Stress tab color-by) ──────────────── */
+.form-check-inline label,
+.dash-radioitems label,
+.dash-radioitems > div > label {
+    color: #E8E9F0 !important;
+    font-size: 0.875rem;
+}
+
+/* ── Filters header (FILTERS title) ─────────────────────────── */
+h6.text-uppercase {
+    color: #6C63FF !important;
+}
+
+/* ── Horizontal rule in sidebar ──────────────────────────────── */
+hr {
+    border-color: #2A2B3D !important;
+    opacity: 1;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #12131A; }
+::-webkit-scrollbar-thumb { background: #2A2B3D; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #6C63FF; }
